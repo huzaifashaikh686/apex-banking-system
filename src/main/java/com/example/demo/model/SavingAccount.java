@@ -1,8 +1,11 @@
 package com.example.demo.model;
 
+@Entity
 public class SavingAccount extends Account {
 
     private double interestRate;
+
+    public SavingAccount() {}
 
     public SavingAccount(String accHolder, double interestRate) {
         super(accHolder);
