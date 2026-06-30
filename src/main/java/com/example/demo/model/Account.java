@@ -1,13 +1,15 @@
 package com.example.demo.model;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 public abstract class Account {
 
-    private static AtomicInteger counter = new AtomicInteger(1000);
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
     private String accHolder;
     private int accNo;
     private double balance;
+
+    public Account() {}
     
     public Account(String accHolder){
         this.accHolder = accHolder;
