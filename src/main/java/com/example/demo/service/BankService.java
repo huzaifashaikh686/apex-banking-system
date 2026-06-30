@@ -1,12 +1,15 @@
 package com.example.demo.service;
 
 import com.example.demo.model.*;
-import com.example.demo.repository.*;
+import com.example.demo.repository.AccountRepository;
+import com.example.demo.repository.TransactionRepository;
 import org.springframework.stereotype.Service;
-import java.util.ArrayList;
+
+import java.util.List;
 
 @Service
 public class BankService {
+
     private final AccountRepository accountRepo;
     private final TransactionRepository txRepo;
 
@@ -14,110 +17,114 @@ public class BankService {
         this.accountRepo = accountRepo;
         this.txRepo = txRepo;
     }
-    
-    public void createSavingAccount(String accHolder, double interestRate) {
-        Account acc = new SavingAccount(accHolder, interestRate);
-        accountRepo.save(acc);
+
+    // CREATE SAVING ACCOUNT
+    public SavingAccount createSavingAccount(String accHolder, double interestRate) {
+        SavingAccount acc = new SavingAccount(accHolder, interestRate);
+        return accountRepo.save(acc);
     }
 
-    public void createCurrentAccount(String accHolder) {
-        Account acc = new CurrentAccount(accHolder);
-        accountRepo.save(acc);
+    // CREATE CURRENT ACCOUNT
+    public CurrentAccount createCurrentAccount(String accHolder) {
+        CurrentAccount acc = new CurrentAccount(accHolder);
+        return accountRepo.save(acc);
     }
 
-    public Account getAccountByNo(int accNo) {
-        Account acc = accountRepo.findByAccNo(accNo);
-        if (acc == null) throw new IllegalArgumentException("Account Not Found");
-        return acc;
+    // GET ACCOUNT BY ID
+    public Account getAccountById(Long id) {
+        return accountRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Account Not Found"));
     }
 
-    public void removeAccount(int accNo) {
-        if (accountRepo.findByAccNo(accNo) == null) throw new IllegalArgumentException("Account Not Found");
-        accountRepo.delete(accNo);
+    // GET ALL ACCOUNTS
+    public List<Account> getAllAccounts() {
+        return accountRepo.findAll();
     }
 
-    public ArrayList<Account> getAllAccounts() { 
-        return accountRepo.viewAllAccounts(); 
-    }
+    // DEPOSIT
+    public void deposit(Long id, double amount) {
+        Account acc = getAccountById(id);
 
-    public void addInterestToAccount(int accNo) {
-        Account acc = accountRepo.findByAccNo(accNo);
-        if (acc == null) throw new IllegalArgumentException("Account Not Found");
-        
-        if (acc instanceof SavingAccount) {
-            synchronized (acc) {
-                double oldBalance = acc.getBalance();
-                acc.applyInterest();
-                double interestAmount = acc.getBalance() - oldBalance;
-
-                if (interestAmount > 0) {
-                    txRepo.save(new Transaction("Interest", interestAmount, 0, accNo));
-                }
-            }
-        } else {
-            throw new IllegalArgumentException("Account is not a Saving Account");
-        }
-    }
-
-    public void depositService(int accNo, double amount) {
-        Account acc = accountRepo.findByAccNo(accNo);
-        if (acc == null) throw new IllegalArgumentException("Account Not Found");
-        
         synchronized (acc) {
             acc.deposit(amount);
-            txRepo.save(new Transaction("Deposit", amount, 0, accNo));   
+            accountRepo.save(acc);
         }
+
+        txRepo.save(new Transaction("DEPOSIT", amount, 0, id.intValue()));
     }
 
-    public void withdrawService(int accNo, double amount) {
-        Account acc = accountRepo.findByAccNo(accNo);
-        if (acc == null) throw new IllegalArgumentException("Account Not Found");
-        
+    // WITHDRAW
+    public void withdraw(Long id, double amount) {
+        Account acc = getAccountById(id);
+
         synchronized (acc) {
             acc.withdraw(amount);
-            txRepo.save(new Transaction("Withdraw", amount, accNo, 0));
+            accountRepo.save(acc);
         }
+
+        txRepo.save(new Transaction("WITHDRAW", amount, id.intValue(), 0));
     }
 
-    public void transfer(int from, int to, double amount) {
-        if (from == to) throw new IllegalArgumentException("Cannot Transfer To Same Account");
-        if (amount <= 0) throw new IllegalArgumentException("Amount must be > 0");
+    // TRANSFER
+    public void transfer(Long fromId, Long toId, double amount) {
 
-        Account sender = accountRepo.findByAccNo(from);
-        Account receiver = accountRepo.findByAccNo(to);
+        if (fromId.equals(toId)) {
+            throw new RuntimeException("Cannot transfer to same account");
+        }
 
-        if (sender == null) throw new IllegalArgumentException("Sender's Account Not Found");
-        if (receiver == null) throw new IllegalArgumentException("Receiver's Account Not Found");
+        Account sender = getAccountById(fromId);
+        Account receiver = getAccountById(toId);
 
-        // Deadlock prevention: Always lock resources in a predictable, ordered sequence
-        Account firstLock = from < to ? sender : receiver;
-        Account secondLock = from < to ? receiver : sender;
+        // deadlock prevention
+        Account first = fromId < toId ? sender : receiver;
+        Account second = fromId < toId ? receiver : sender;
 
-        synchronized (firstLock) {
-            synchronized (secondLock) {
-                if (amount > sender.getAvailableBalance()) {
-                    throw new IllegalArgumentException("Insufficient Balance");
+        synchronized (first) {
+            synchronized (second) {
+
+                if (amount > sender.getBalance()) {
+                    throw new RuntimeException("Insufficient Balance");
                 }
-                
+
                 sender.withdraw(amount);
-                try {
-                    receiver.deposit(amount);
-                } catch (Exception e) {
-                    sender.deposit(amount); // Rollback state
-                    txRepo.save(new Transaction("Transfer Rollback", amount, sender.getAccNo(), receiver.getAccNo()));
-                    throw new RuntimeException("Transfer failed and rolled back", e);
-                }
-                txRepo.save(new Transaction("Transferred", amount, sender.getAccNo(), receiver.getAccNo()));
+                receiver.deposit(amount);
+
+                accountRepo.save(sender);
+                accountRepo.save(receiver);
+
+                txRepo.save(
+                        new Transaction("TRANSFER", amount,
+                                fromId.intValue(),
+                                toId.intValue())
+                );
             }
         }
     }
 
-    public ArrayList<Transaction> getTransactionHistory(int accNo) {
-        if (accountRepo.findByAccNo(accNo) == null) throw new IllegalArgumentException("Account Not Found");
-        return txRepo.transactionsFindByAccNo(accNo);
+    // APPLY INTEREST
+    public void applyInterest(Long id) {
+        Account acc = getAccountById(id);
+
+        if (!(acc instanceof SavingAccount)) {
+            throw new RuntimeException("Not a Saving Account");
+        }
+
+        double oldBalance = acc.getBalance();
+
+        synchronized (acc) {
+            acc.applyInterest();
+            accountRepo.save(acc);
+        }
+
+        double interest = acc.getBalance() - oldBalance;
+
+        if (interest > 0) {
+            txRepo.save(new Transaction("INTEREST", interest, 0, id.intValue()));
+        }
     }
 
-    public ArrayList<Transaction> getAllAccountsTransactionHistory() {
-        return txRepo.findAllAccountsTransactions();
+    // TRANSACTION HISTORY (ALL)
+    public List<Transaction> getAllTransactions() {
+        return txRepo.findAll();
     }
 }
