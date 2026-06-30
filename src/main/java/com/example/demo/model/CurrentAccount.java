@@ -1,8 +1,11 @@
 package com.example.demo.model;
 
+@Entity
 public class CurrentAccount extends Account {
 
     private int overdraft = 10000;
+
+    public CurrentAccount() {}
 
     public CurrentAccount(String accHolder){
         super(accHolder);
