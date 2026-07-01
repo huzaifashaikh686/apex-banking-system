@@ -63,7 +63,7 @@ public class BankService {
 
         transactionRepo.save(
                 new Transaction(
-                        "DEPOSIT ", amount, 0L, id)
+                        "DEPOSIT", amount, 0L, id)
         );
     }
 
@@ -78,7 +78,7 @@ public class BankService {
 
         transactionRepo.save(
                 new Transaction(
-                        "WITHDRAW ", amount, id, 0L)
+                        "WITHDRAW", amount, id, 0L)
         );
     }
 
@@ -104,7 +104,7 @@ public class BankService {
 
         transactionRepo.save(
                 new Transaction(
-                        "TRANSFER ", amount, fromId, toId)
+                        "TRANSFER", amount, fromId, toId)
         );
     }
 
@@ -127,10 +127,17 @@ public class BankService {
 
         if (interest > 0) {
             transactionRepo.save(
-                    new Transaction("INTEREST ", interest, 0L, id)
+                    new Transaction("INTEREST", interest, 0L, id)
             );
         }
     }
+    
+    public List<Transaction> getTransactionHistory(Long id) {
+
+    getAccountById(id);
+
+    return transactionRepo.findByFromAccOrToAcc(id, id);
+}
 
     // Get All Transactions
     public List<Transaction> getAllTransactions() {
