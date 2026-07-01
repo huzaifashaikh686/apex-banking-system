@@ -101,6 +101,12 @@ public class BankController {
                 service.getAllAccounts()
         );
     }
+    
+    @GetMapping("/accounts/{id}/transactions")
+    public ResponseEntity<List<Transaction>> getTransactionHistory(@PathVariable Long id) {
+
+    return ResponseEntity.ok(service.getTransactionHistory(id));
+}
 
     // Get All Transactions
     @GetMapping("/transactions")
