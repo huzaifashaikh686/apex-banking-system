@@ -1,130 +1,139 @@
 package com.example.demo.service;
 
-import com.example.demo.model.*;
+import com.example.demo.model.Account;
+import com.example.demo.model.CurrentAccount;
+import com.example.demo.model.SavingAccount;
+import com.example.demo.model.Transaction;
 import com.example.demo.repository.AccountRepository;
 import com.example.demo.repository.TransactionRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
+@Transactional
 public class BankService {
 
     private final AccountRepository accountRepo;
-    private final TransactionRepository txRepo;
+    private final TransactionRepository transactionRepo;
 
-    public BankService(AccountRepository accountRepo, TransactionRepository txRepo) {
+    public BankService(AccountRepository accountRepo, TransactionRepository transactionRepo) {
         this.accountRepo = accountRepo;
-        this.txRepo = txRepo;
+        this.transactionRepo = transactionRepo;
     }
 
-    // CREATE SAVING ACCOUNT
-    public SavingAccount createSavingAccount(String accHolder, double interestRate) {
-        SavingAccount acc = new SavingAccount(accHolder, interestRate);
-        return accountRepo.save(acc);
+    // Create Saving Account
+    public Account createSavingAccount(String accHolder, double interestRate) {
+
+        Account account = new SavingAccount(accHolder, interestRate);
+
+        return accountRepo.save(account);
     }
 
-    // CREATE CURRENT ACCOUNT
-    public CurrentAccount createCurrentAccount(String accHolder) {
-        CurrentAccount acc = new CurrentAccount(accHolder);
-        return accountRepo.save(acc);
+    // Create Current Account
+    public Account createCurrentAccount(String accHolder) {
+
+        Account account = new CurrentAccount(accHolder);
+
+        return accountRepo.save(account);
     }
 
-    // GET ACCOUNT BY ID
+    // Get Account By Id
     public Account getAccountById(Long id) {
+
         return accountRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Account Not Found"));
+                .orElseThrow(() ->
+                        new RuntimeException("Account not found with id : " + id));
     }
 
-    // GET ALL ACCOUNTS
+    // Get All Accounts
     public List<Account> getAllAccounts() {
         return accountRepo.findAll();
     }
 
-    // DEPOSIT
+    // Deposit
     public void deposit(Long id, double amount) {
-        Account acc = getAccountById(id);
 
-        synchronized (acc) {
-            acc.deposit(amount);
-            accountRepo.save(acc);
-        }
+        Account account = getAccountById(id);
 
-        txRepo.save(new Transaction("DEPOSIT", amount, 0, id.intValue()));
+        account.deposit(amount);
+
+        accountRepo.save(account);
+
+        transactionRepo.save(
+                new Transaction(
+                        "DEPOSIT ", amount, 0L, id)
+        );
     }
 
-    // WITHDRAW
+    // Withdraw
     public void withdraw(Long id, double amount) {
-        Account acc = getAccountById(id);
 
-        synchronized (acc) {
-            acc.withdraw(amount);
-            accountRepo.save(acc);
-        }
+        Account account = getAccountById(id);
 
-        txRepo.save(new Transaction("WITHDRAW", amount, id.intValue(), 0));
+        account.withdraw(amount);
+
+        accountRepo.save(account);
+
+        transactionRepo.save(
+                new Transaction(
+                        "WITHDRAW ", amount, id, 0L)
+        );
     }
 
-    // TRANSFER
+    // Transfer
     public void transfer(Long fromId, Long toId, double amount) {
 
         if (fromId.equals(toId)) {
-            throw new RuntimeException("Cannot transfer to same account");
+            throw new RuntimeException("Cannot transfer to the same account.");
+        }
+
+        if (amount <= 0) {
+            throw new RuntimeException("Amount must be greater than 0.");
         }
 
         Account sender = getAccountById(fromId);
         Account receiver = getAccountById(toId);
 
-        // deadlock prevention
-        Account first = fromId < toId ? sender : receiver;
-        Account second = fromId < toId ? receiver : sender;
+        sender.withdraw(amount);
+        receiver.deposit(amount);
 
-        synchronized (first) {
-            synchronized (second) {
+        accountRepo.save(sender);
+        accountRepo.save(receiver);
 
-                if (amount > sender.getBalance()) {
-                    throw new RuntimeException("Insufficient Balance");
-                }
-
-                sender.withdraw(amount);
-                receiver.deposit(amount);
-
-                accountRepo.save(sender);
-                accountRepo.save(receiver);
-
-                txRepo.save(
-                        new Transaction("TRANSFER", amount,
-                                fromId.intValue(),
-                                toId.intValue())
-                );
-            }
-        }
+        transactionRepo.save(
+                new Transaction(
+                        "TRANSFER ", amount, fromId, toId)
+        );
     }
 
-    // APPLY INTEREST
+    // Apply Interest
     public void applyInterest(Long id) {
-        Account acc = getAccountById(id);
 
-        if (!(acc instanceof SavingAccount)) {
-            throw new RuntimeException("Not a Saving Account");
+        Account account = getAccountById(id);
+
+        if (!(account instanceof SavingAccount)) {
+            throw new RuntimeException("Interest can only be applied to Saving Accounts.");
         }
 
-        double oldBalance = acc.getBalance();
+        double oldBalance = account.getBalance();
 
-        synchronized (acc) {
-            acc.applyInterest();
-            accountRepo.save(acc);
-        }
+        account.applyInterest();
 
-        double interest = acc.getBalance() - oldBalance;
+        accountRepo.save(account);
+
+        double interest = account.getBalance() - oldBalance;
 
         if (interest > 0) {
-            txRepo.save(new Transaction("INTEREST", interest, 0, id.intValue()));
+            transactionRepo.save(
+                    new Transaction("INTEREST ", interest, 0L, id)
+            );
         }
     }
 
-    // TRANSACTION HISTORY (ALL)
+    // Get All Transactions
     public List<Transaction> getAllTransactions() {
-        return txRepo.findAll();
+        return transactionRepo.findAll();
     }
 }
