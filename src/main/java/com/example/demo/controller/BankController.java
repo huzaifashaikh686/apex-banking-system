@@ -1,9 +1,11 @@
 package com.example.demo.controller;
 
-import com.example.demo.model.*;
+import com.example.demo.model.Account;
+import com.example.demo.model.Transaction;
 import com.example.demo.service.BankService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @RestController
@@ -16,93 +18,96 @@ public class BankController {
         this.service = service;
     }
 
+    // Create Saving Account
     @PostMapping("/accounts/saving")
-    public ResponseEntity<String> createSaving(@RequestParam String holder, @RequestParam double interest) {
-        try {
-            service.createSavingAccount(holder, interest);
-            return ResponseEntity.ok("Saving Account Created!");
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
-        }
+    public ResponseEntity<Account> createSaving(
+            @RequestParam String accHolder,
+            @RequestParam double interestRate) {
+
+        return ResponseEntity.ok(
+                service.createSavingAccount(accHolder, interestRate)
+        );
     }
 
+    // Create Current Account
     @PostMapping("/accounts/current")
-    public ResponseEntity<String> createCurrent(@RequestParam String holder) {
-        try {
-            service.createCurrentAccount(holder);
-            return ResponseEntity.ok("Current Account Created!");
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
-        }
+    public ResponseEntity<Account> createCurrent(
+            @RequestParam String accHolder) {
+
+        return ResponseEntity.ok(
+                service.createCurrentAccount(accHolder)
+        );
     }
 
-    @PostMapping("/accounts/{accNo}/deposit")
-    public ResponseEntity<String> deposit(@PathVariable int accNo, @RequestParam double amount) {
-        try {
-            service.depositService(accNo, amount);
-            return ResponseEntity.ok("Deposited " + amount);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
-        }
+    // Deposit
+    @PostMapping("/accounts/{id}/deposit")
+    public ResponseEntity<String> deposit(
+            @PathVariable Long id,
+            @RequestParam double amount) {
+
+        service.deposit(id, amount);
+
+        return ResponseEntity.ok("Amount deposited successfully.");
     }
 
-    @PostMapping("/accounts/{accNo}/withdraw")
-    public ResponseEntity<String> withdraw(@PathVariable int accNo, @RequestParam double amount) {
-        try {
-            service.withdrawService(accNo, amount);
-            return ResponseEntity.ok("Withdrawn " + amount);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
-        }
+    // Withdraw
+    @PostMapping("/accounts/{id}/withdraw")
+    public ResponseEntity<String> withdraw(
+            @PathVariable Long id,
+            @RequestParam double amount) {
+
+        service.withdraw(id, amount);
+
+        return ResponseEntity.ok("Amount withdrawn successfully.");
     }
 
+    // Transfer
     @PostMapping("/accounts/transfer")
-    public ResponseEntity<String> transfer(@RequestParam int from, @RequestParam int to, @RequestParam double amount) {
-        try {
-            service.transfer(from, to, amount);
-            return ResponseEntity.ok("Transferred " + amount);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
-        }
+    public ResponseEntity<String> transfer(
+            @RequestParam Long fromId,
+            @RequestParam Long toId,
+            @RequestParam double amount) {
+
+        service.transfer(fromId, toId, amount);
+
+        return ResponseEntity.ok("Transfer completed successfully.");
     }
 
-    @PostMapping("/accounts/{accNo}/apply-interest")
-    public ResponseEntity<String> applyInterest(@PathVariable int accNo) {
-        try {
-            service.addInterestToAccount(accNo);
-            return ResponseEntity.ok("Interest Applied Successfully!");
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
-        }
+    // Apply Interest
+    @PostMapping("/accounts/{id}/apply-interest")
+    public ResponseEntity<String> applyInterest(
+            @PathVariable Long id) {
+
+        service.applyInterest(id);
+
+        return ResponseEntity.ok("Interest applied successfully.");
     }
 
-    @GetMapping("/accounts/{accNo}")
-    public ResponseEntity<?> getAccount(@PathVariable int accNo) {
-        try {
-            Account acc = service.getAccountByNo(accNo);
-            return ResponseEntity.ok(acc);
-        } catch (Exception e) {
-            return ResponseEntity.status(404).body("Error: " + e.getMessage());
-        }
+    // Get One Account
+    @GetMapping("/accounts/{id}")
+    public ResponseEntity<Account> getAccount(
+            @PathVariable Long id) {
+
+        return ResponseEntity.ok(
+                service.getAccountById(id)
+        );
     }
 
+    // Get All Accounts
     @GetMapping("/accounts")
     public ResponseEntity<List<Account>> getAllAccounts() {
-        return ResponseEntity.ok(service.getAllAccounts());
+
+        return ResponseEntity.ok(
+                service.getAllAccounts()
+        );
     }
 
-    @GetMapping("/accounts/{accNo}/transactions")
-    public ResponseEntity<?> getTransactions(@PathVariable int accNo) {
-        try {
-            List<Transaction> history = service.getTransactionHistory(accNo);
-            return ResponseEntity.ok(history);
-        } catch (Exception e) {
-            return ResponseEntity.status(404).body("Error: " + e.getMessage());
-        }
-    }
-
+    // Get All Transactions
     @GetMapping("/transactions")
     public ResponseEntity<List<Transaction>> getAllTransactions() {
-        return ResponseEntity.ok(service.getAllAccountsTransactionHistory());
+
+        return ResponseEntity.ok(
+                service.getAllTransactions()
+        );
     }
 }
