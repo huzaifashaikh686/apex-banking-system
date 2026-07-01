@@ -4,22 +4,32 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "transactions")
 public class Transaction {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String tType;
-    private double amount;
-    private int fromAcc;
-    private int toAcc;
 
+    @Column(nullable = false)
+    private double amount;
+
+    @Column(nullable = false)
+    private Long fromAcc;
+
+    @Column(nullable = false)
+    private Long toAcc;
+
+    @Column(nullable = false)
     private LocalDateTime timestamp;
 
-    public Transaction() {}
+    public Transaction() {
+    }
 
-    public Transaction(String tType, double amount, int fromAcc, int toAcc) {
+    public Transaction(String tType, double amount, Long fromAcc, Long toAcc) {
         this.tType = tType;
         this.amount = amount;
         this.fromAcc = fromAcc;
@@ -39,16 +49,32 @@ public class Transaction {
         return tType;
     }
 
+    public void setType(String tType) {
+        this.tType = tType;
+    }
+
     public double getAmount() {
         return amount;
     }
 
-    public int getFromAcc() {
+    public void setAmount(double amount) {
+        this.amount = amount;
+    }
+
+    public Long getFromAcc() {
         return fromAcc;
     }
 
-    public int getToAcc() {
+    public void setFromAcc(Long fromAcc) {
+        this.fromAcc = fromAcc;
+    }
+
+    public Long getToAcc() {
         return toAcc;
+    }
+
+    public void setToAcc(Long toAcc) {
+        this.toAcc = toAcc;
     }
 
     public LocalDateTime getTimestamp() {
@@ -57,6 +83,7 @@ public class Transaction {
 
     @Override
     public String toString() {
-        return "[" + timestamp + "] " + tType + " of " + amount + " from Account #" + fromAcc + " to Account #" + toAcc;
+        return "[" + timestamp + "] " + tType + " of " + amount + " from Account #" + fromAcc + " to Account #"
+                + toAcc;
     }
 }
